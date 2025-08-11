@@ -278,6 +278,58 @@ h2 {
   font-style: italic;
 }
 
+.email-error-content {
+  padding: 1rem;
+  background-color: #fff4f4;
+  border-radius: var(--radius);
+  border: 1px solid #ffcdd2;
+  margin-bottom: 1.5rem;
+}
+
+.email-error-content p {
+  color: var(--danger-color);
+  margin-bottom: 1rem;
+}
+
+.email-headers {
+  background-color: var(--bg-dark);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.email-headers h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.headers-container {
+  max-height: 300px;
+  overflow-y: auto;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+.header-item {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  word-break: break-all;
+}
+
+.header-item:last-child {
+  border-bottom: none;
+}
+
+.header-item strong {
+  color: var(--primary-color);
+  margin-right: 0.5rem;
+}
+
 /* Modal Styles */
 .modal-overlay {
   position: fixed;

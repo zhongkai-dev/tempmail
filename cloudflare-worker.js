@@ -14,46 +14,72 @@ export default {
       const to = message.to;
       const subject = message.headers.get("subject") || "";
       
-      // Get email content
+      // Extract all headers for debugging and content recovery
+      const headers = {};
+      for (const [key, value] of message.headers.entries()) {
+        headers[key.toLowerCase()] = value;
+      }
+      
+      // Get email content with multiple fallbacks
       let text = "";
       let html = "";
       
       try {
-        // Simple approach - get raw content first
-        const rawContent = await message.raw.text();
-        text = rawContent;
+        // Try to get the raw email first
+        const rawEmail = await message.raw.text();
         
-        // Try to get text and HTML parts if it's multipart
+        // Store raw content in a variable for debugging
+        const rawContent = rawEmail.substring(0, 10000); // Limit size
+        
+        // Try to parse multipart content if available
         const contentType = message.headers.get("content-type") || "";
         if (contentType.includes("multipart/")) {
-          const parts = await message.raw.multipart();
-          for (const part of parts) {
-            const partContentType = part.headers.get("content-type") || "";
-            if (partContentType && partContentType.includes("text/plain")) {
-              text = await part.text();
-            } else if (partContentType && partContentType.includes("text/html")) {
-              html = await part.text();
+          try {
+            const parts = await message.raw.multipart();
+            
+            // Process each part
+            for (const part of parts) {
+              const partContentType = part.headers.get("content-type") || "";
+              
+              if (partContentType && partContentType.includes("text/plain")) {
+                text = await part.text();
+              } else if (partContentType && partContentType.includes("text/html")) {
+                html = await part.text();
+              }
             }
+            
+            // If we couldn't extract text but have HTML, create a text version
+            if (!text && html) {
+              // Simple HTML to text conversion
+              const tempText = html.replace(/<[^>]*>/g, ' ')
+                                  .replace(/\s+/g, ' ')
+                                  .trim();
+              text = tempText || "HTML content available. Please view in HTML mode.";
+            }
+            
+          } catch (multipartError) {
+            console.error("Error processing multipart:", multipartError.message);
+            // Fall back to the raw content
+            text = rawContent || "Error extracting multipart content";
           }
+        } else {
+          // Not multipart, use raw content
+          text = rawContent;
         }
-      } catch (error) {
-        console.error("Error extracting email content:", error.message);
-        // Fall back to a simple approach if multipart parsing fails
-        try {
-          text = await message.text();
-        } catch (e) {
-          console.error("Failed to get email text:", e.message);
-          text = "Error: Could not extract email content";
-        }
+      } catch (contentError) {
+        console.error("Error extracting content:", contentError.message);
+        text = "Error extracting email content. Please check headers.";
       }
       
-      // Prepare simplified payload to reduce chances of errors
+      // Prepare payload with all available data
       const payload = {
         from: from,
         to: to,
         subject: subject,
-        text: text,
-        html: html || ""
+        text: text || "Error: Could not extract email content",
+        html: html || "",
+        headers: headers,
+        receivedAt: new Date().toISOString()
       };
       
       console.log("Processing email from:", from, "to:", to);

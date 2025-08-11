@@ -241,23 +241,38 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Determine content to display
     let emailContent = '';
+    
+    // If HTML content is available, use it
     if (email.html && email.html.trim()) {
-      // Create a sandbox for the HTML content
       emailContent = `
         <div class="email-html-content">
           <iframe id="emailContentFrame" sandbox="allow-same-origin" frameborder="0" width="100%"></iframe>
         </div>
       `;
-    } else if (email.text && email.text.trim()) {
+    } 
+    // If text content is available, use it
+    else if (email.text && email.text.trim() && email.text !== 'Error: Could not extract email content') {
       emailContent = `
         <div class="email-text-content">
           <pre>${escapeHtml(email.text)}</pre>
         </div>
       `;
-    } else {
+    } 
+    // If there's an error or no content, show headers
+    else {
       emailContent = `
-        <div class="email-no-content">
-          <p>This email does not contain any content.</p>
+        <div class="email-error-content">
+          <p>The email content could not be extracted properly.</p>
+          ${email.headers ? `
+            <div class="email-headers">
+              <h3>Email Headers</h3>
+              <div class="headers-container">
+                ${Object.entries(email.headers).map(([key, value]) => 
+                  `<div class="header-item"><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`
+                ).join('')}
+              </div>
+            </div>
+          ` : ''}
         </div>
       `;
     }
@@ -270,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div class="modal-meta">
         <div><strong>From:</strong> ${escapeHtml(fromAddress)}</div>
-        <div><strong>To:</strong> ${escapeHtml(tempEmailElement.textContent)}</div>
+        <div><strong>To:</strong> ${escapeHtml(email.to || tempEmailElement.textContent)}</div>
         <div><strong>Date:</strong> ${formatDate(new Date(email.receivedAt), true)}</div>
       </div>
       <div class="modal-body">

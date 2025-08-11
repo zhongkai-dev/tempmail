@@ -1,0 +1,28 @@
+{
+  "name": "tempmail",
+  "version": "1.0.0",
+  "description": "Temporary email service with email persistence",
+  "main": "backend/index.js",
+  "scripts": {
+    "start": "node backend/index.js",
+    "build": "echo 'No build step required'"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhongkai-dev/tempmail.git"
+  },
+  "keywords": [
+    "tempmail",
+    "email",
+    "disposable"
+  ],
+  "author": "",
+  "license": "MIT"
+} 

@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs", "nodejs.pkg", "yarn"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["echo 'No build step required'"]
+
+[start]
+cmd = "node backend/index.js" 

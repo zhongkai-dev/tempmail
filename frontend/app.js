@@ -4,9 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const tempEmailElement = document.getElementById('tempEmail');
   const emailsContainer = document.getElementById('emails');
   const refreshBtn = document.getElementById('refreshBtn');
+  const modalOverlay = document.getElementById('modalOverlay');
+  const modalContent = document.getElementById('modalContent');
+  const closeModalBtn = document.getElementById('closeModal');
   
   let localPart = '';
   let pollingInterval;
+  let emailsData = []; // Store emails data for reference
   
   // Check for existing email in cookies when page loads
   function checkExistingEmail() {
@@ -73,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Stop polling
     if (pollingInterval) clearInterval(pollingInterval);
     localPart = '';
+    emailsData = [];
     
     // Show notification
     showNotification('Email deleted. You can generate a new one.');
@@ -114,6 +119,18 @@ document.addEventListener('DOMContentLoaded', () => {
       showNotification('No email address generated yet', 'error');
     }
   });
+
+  // Close modal when clicking the close button
+  closeModalBtn.addEventListener('click', () => {
+    modalOverlay.classList.remove('active');
+  });
+
+  // Close modal when clicking outside the content
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+      modalOverlay.classList.remove('active');
+    }
+  });
   
   // Fetch emails for the current temp email
   async function fetchEmails() {
@@ -127,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       const emails = await response.json();
+      emailsData = emails; // Store emails data
       renderEmails(emails);
       
     } catch (error) {
@@ -146,32 +164,190 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sort emails by received time (newest first)
     emails.sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
     
-    emails.forEach(email => {
+    emails.forEach((email, index) => {
       const emailElement = document.createElement('div');
       emailElement.className = 'email-item';
+      emailElement.setAttribute('data-index', index);
       
-      const fromAddress = typeof email.from === 'string' ? email.from : 
-                         (email.from.address ? `${email.from.name || ''} <${email.from.address}>` : 'Unknown');
+      const fromAddress = formatFromAddress(email.from);
+      const previewText = getEmailPreview(email.text, email.html);
       
       emailElement.innerHTML = `
         <div class="email-header">
           <div class="email-subject">${escapeHtml(email.subject || 'No Subject')}</div>
           <div class="email-meta">
-            <span>From: ${escapeHtml(fromAddress)}</span>
-            <span>${formatDate(new Date(email.receivedAt))}</span>
+            <span class="email-from">From: ${escapeHtml(fromAddress)}</span>
+            <span class="email-date">${formatDate(new Date(email.receivedAt))}</span>
           </div>
         </div>
-        <div class="email-content">
-          ${email.html ? email.html : `<pre>${escapeHtml(email.text || '')}</pre>`}
-        </div>
+        <div class="email-preview">${previewText}</div>
       `;
+      
+      // Add click event to show full email details
+      emailElement.addEventListener('click', () => {
+        showEmailDetails(email);
+      });
       
       emailsContainer.appendChild(emailElement);
     });
   }
+
+  // Format the from address
+  function formatFromAddress(from) {
+    if (!from) return 'Unknown';
+    
+    if (typeof from === 'string') {
+      return from;
+    }
+    
+    if (from.address) {
+      return from.name ? `${from.name} <${from.address}>` : from.address;
+    }
+    
+    return JSON.stringify(from);
+  }
+
+  // Get a preview of the email content
+  function getEmailPreview(text, html) {
+    if (!text && !html) {
+      return '<span class="email-no-content">No content</span>';
+    }
+    
+    if (text === 'Error: Could not extract email content') {
+      return '<span class="email-error">Email content could not be extracted</span>';
+    }
+    
+    // Use text content for preview if available
+    if (text && text.trim()) {
+      const preview = text.trim().substring(0, 100);
+      return `<span class="email-text-preview">${escapeHtml(preview)}${preview.length >= 100 ? '...' : ''}</span>`;
+    }
+    
+    // Fall back to stripped HTML content
+    if (html) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const textContent = tempDiv.textContent || tempDiv.innerText || '';
+      const preview = textContent.trim().substring(0, 100);
+      return `<span class="email-text-preview">${escapeHtml(preview)}${preview.length >= 100 ? '...' : ''}</span>`;
+    }
+    
+    return '<span class="email-no-content">No content</span>';
+  }
+
+  // Show email details in modal
+  function showEmailDetails(email) {
+    const fromAddress = formatFromAddress(email.from);
+    
+    // Determine content to display
+    let emailContent = '';
+    if (email.html && email.html.trim()) {
+      // Create a sandbox for the HTML content
+      emailContent = `
+        <div class="email-html-content">
+          <iframe id="emailContentFrame" sandbox="allow-same-origin" frameborder="0" width="100%"></iframe>
+        </div>
+      `;
+    } else if (email.text && email.text.trim()) {
+      emailContent = `
+        <div class="email-text-content">
+          <pre>${escapeHtml(email.text)}</pre>
+        </div>
+      `;
+    } else {
+      emailContent = `
+        <div class="email-no-content">
+          <p>This email does not contain any content.</p>
+        </div>
+      `;
+    }
+    
+    // Set modal content
+    modalContent.innerHTML = `
+      <div class="modal-header">
+        <h2>${escapeHtml(email.subject || 'No Subject')}</h2>
+        <button id="closeModal" class="btn icon-btn"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-meta">
+        <div><strong>From:</strong> ${escapeHtml(fromAddress)}</div>
+        <div><strong>To:</strong> ${escapeHtml(tempEmailElement.textContent)}</div>
+        <div><strong>Date:</strong> ${formatDate(new Date(email.receivedAt), true)}</div>
+      </div>
+      <div class="modal-body">
+        ${emailContent}
+      </div>
+    `;
+    
+    // Show the modal
+    modalOverlay.classList.add('active');
+    
+    // If HTML content, set it to the iframe after the modal is visible
+    if (email.html && email.html.trim()) {
+      setTimeout(() => {
+        const iframe = document.getElementById('emailContentFrame');
+        if (iframe) {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+          iframeDoc.open();
+          
+          // Add base styles and sanitize HTML
+          iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  line-height: 1.6;
+                  color: #333;
+                  padding: 10px;
+                  margin: 0;
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                }
+                a {
+                  color: #4f46e5;
+                }
+              </style>
+            </head>
+            <body>
+              ${email.html}
+            </body>
+            </html>
+          `);
+          iframeDoc.close();
+          
+          // Adjust iframe height to content
+          iframe.onload = function() {
+            iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+          };
+        }
+      }, 100);
+    }
+    
+    // Add event listener to the close button
+    document.getElementById('closeModal').addEventListener('click', () => {
+      modalOverlay.classList.remove('active');
+    });
+  }
   
   // Helper function to format date
-  function formatDate(date) {
+  function formatDate(date, detailed = false) {
+    if (detailed) {
+      return date.toLocaleString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+    
     return date.toLocaleString(undefined, {
       year: 'numeric',
       month: 'short',

@@ -28,11 +28,8 @@ export default {
         // Try to get the raw email first
         const rawEmail = await message.raw.text();
         
-        // Store raw content in a variable for debugging
-        const rawContent = rawEmail.substring(0, 10000); // Limit size
-        
         // Try to parse multipart content if available
-        const contentType = message.headers.get("content-type") || "";
+        const contentType = headers["content-type"] || "";
         if (contentType.includes("multipart/")) {
           try {
             const parts = await message.raw.multipart();
@@ -50,25 +47,21 @@ export default {
             
             // If we couldn't extract text but have HTML, create a text version
             if (!text && html) {
-              // Simple HTML to text conversion
-              const tempText = html.replace(/<[^>]*>/g, ' ')
-                                  .replace(/\s+/g, ' ')
-                                  .trim();
-              text = tempText || "HTML content available. Please view in HTML mode.";
+              text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
             }
             
           } catch (multipartError) {
             console.error("Error processing multipart:", multipartError.message);
-            // Fall back to the raw content
-            text = rawContent || "Error extracting multipart content";
+            // Fall back to the raw email if multipart parsing fails
+            text = rawEmail;
           }
         } else {
-          // Not multipart, use raw content
-          text = rawContent;
+          // Not multipart, use raw email content
+          text = rawEmail;
         }
       } catch (contentError) {
         console.error("Error extracting content:", contentError.message);
-        text = "Error extracting email content. Please check headers.";
+        text = ""; // Leave text empty if there's an error
       }
       
       // Prepare payload with all available data
@@ -76,7 +69,7 @@ export default {
         from: from,
         to: to,
         subject: subject,
-        text: text || "Error: Could not extract email content",
+        text: text || "",
         html: html || "",
         headers: headers,
         receivedAt: new Date().toISOString()
@@ -85,48 +78,42 @@ export default {
       console.log("Processing email from:", from, "to:", to);
       
       // Send to backend with retries
-      let retries = 3;
-      let success = false;
-      let lastError = null;
-      
-      while (retries > 0 && !success) {
-        try {
-          const response = await fetch(BACKEND_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-          });
+      ctx.waitUntil(
+        (async () => {
+          let retries = 3;
+          let success = false;
           
-          if (response.ok) {
-            console.log("Email forwarded successfully");
-            success = true;
-            break;
-          } else {
-            const errorText = await response.text();
-            throw new Error(`Backend returned ${response.status}: ${errorText}`);
+          while (retries > 0 && !success) {
+            try {
+              const response = await fetch(BACKEND_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+              });
+              
+              if (response.ok) {
+                console.log("Email forwarded successfully");
+                success = true;
+              } else {
+                const errorText = await response.text();
+                throw new Error(`Backend returned ${response.status}: ${errorText}`);
+              }
+            } catch (error) {
+              console.error(`Attempt failed (${retries} left):`, error.message);
+              retries--;
+              if (retries > 0) await new Promise(r => setTimeout(r, 1000));
+            }
           }
-        } catch (error) {
-          lastError = error;
-          console.error(`Attempt failed (${retries} left):`, error.message);
-          retries--;
-          // Wait a bit before retrying
-          if (retries > 0) {
-            await new Promise(r => setTimeout(r, 1000));
-          }
-        }
-      }
-      
-      if (success) {
-        return new Response("Email processed successfully", { status: 200 });
-      } else {
-        console.error("All attempts failed:", lastError?.message);
-        return new Response("Failed to process email after multiple attempts", { status: 500 });
-      }
+        })()
+      );
+
+      // Acknowledge receipt immediately
+      return;
+
     } catch (error) {
       console.error("Worker execution error:", error.message);
-      return new Response(`Worker error: ${error.message}`, { status: 500 });
+      // Even with errors, we must not throw, or Cloudflare will retry.
+      // The email is already acknowledged by returning.
     }
   }
 }; 

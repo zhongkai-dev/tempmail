@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Temporary Email</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-envelope"></i> TempMail</h1>
+      <p class="tagline">Disposable email addresses for your privacy</p>
+    </header>
+
+    <div class="email-generator">
+      <div class="email-controls">
+        <button id="generateBtn" class="btn primary"><i class="fas fa-plus-circle"></i> Generate Email</button>
+        <button id="deleteBtn" class="btn danger"><i class="fas fa-trash"></i> Delete & Create New</button>
+      </div>
+      <div class="email-display">
+        <div class="email-address">
+          <i class="fas fa-at icon"></i>
+          <p>Your temporary email: <span id="tempEmail">-</span></p>
+        </div>
+        <button id="copyBtn" class="btn secondary" disabled><i class="fas fa-copy"></i> Copy</button>
+      </div>
+      <div class="email-info">
+        <p><i class="fas fa-info-circle"></i> This email will be stored in your browser and persist across page reloads.</p>
+      </div>
+    </div>
+
+    <div class="emails-container">
+      <div class="inbox-header">
+        <h2><i class="fas fa-inbox"></i> Inbox</h2>
+        <div class="inbox-refresh">
+          <span id="autoRefresh">Auto-refreshing every 5 seconds</span>
+          <button id="refreshBtn" class="btn icon-btn"><i class="fas fa-sync-alt"></i></button>
+        </div>
+      </div>
+      <div id="emails" class="emails-list">
+        <p class="no-emails">No emails yet. Generate a temporary email to get started.</p>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2023 TempMail Service | <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a></p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html> 

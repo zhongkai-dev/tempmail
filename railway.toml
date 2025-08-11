@@ -9,4 +9,4 @@ healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 
 [phases]
-setup = { nixPkgs = ["nodejs", "nodejs.pkg"] } 
+setup = { nixPkgs = ["nodejs"] } 

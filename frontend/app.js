@@ -10,6 +10,31 @@ document.addEventListener('DOMContentLoaded', () => {
   let localPart = '';
   let pollingInterval;
 
+  function setCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+      let date = new Date();
+      date.setTime(date.getTime() + (days*24*60*60*1000));
+      expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+  }
+
+  function getCookie(name) {
+    let nameEQ = name + "=";
+    let ca = document.cookie.split(';');
+    for(let i=0;i < ca.length;i++) {
+      let c = ca[i];
+      while (c.charAt(0)==' ') c = c.substring(1,c.length);
+      if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    }
+    return null;
+  }
+
+  function deleteCookie(name) {   
+    document.cookie = name+'=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  }
+
   function checkExistingEmail() {
     const savedEmail = getCookie('tempEmail');
     if (savedEmail) {
@@ -111,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function getEmailPreview(email) {
     if (email.html) return `<span class="email-text-preview">${(new DOMParser().parseFromString(email.html, "text/html").body.textContent || "").substring(0,100)}...</span>`;
     if (email.text) return `<span class="email-text-preview">${escapeHtml(email.text.substring(0, 100))}...</span>`;
-    return '<span class="email-no-content">No content</span>';
+    return '<span class="email-no-content">No content available</span>';
   }
 
   function showEmailDetails(email) {
@@ -157,10 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   const escapeHtml = (unsafe) => unsafe?.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") || '';
-  
-  const setCookie = (name, value, days) => { let expires = ""; if (days) { let date = new Date(); date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000)); expires = "; expires=" + date.toUTCString(); } document.cookie = name + "=" + (value || "") + expires + "; path=/"; };
-  const getCookie = (name) => { let nameEQ = name + "="; let ca = document.cookie.split(';'); for (let i = 0; i < ca.length; i++) { let c = ca[i]; while (c.charAt(0) == ' ') c = c.substring(1, c.length); if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length); } return null; };
-  const deleteCookie = (name) => { document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'; };
   
   function showNotification(message, type = 'success') {
     const notification = document.createElement('div');

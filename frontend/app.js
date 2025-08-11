@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setCookie('tempEmail', data.email, 30);
       copyBtn.disabled = false;
       if (pollingInterval) clearInterval(pollingInterval);
-      fetchEmails();
+      emailsContainer.innerHTML = '<p class="no-emails">No emails yet.</p>';
       pollingInterval = setInterval(fetchEmails, 5000);
       showNotification('Email generated successfully!');
     } catch (error) {
@@ -134,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function getEmailPreview(email) {
-    if (email.html) return `<span class="email-text-preview">${(new DOMParser().parseFromString(email.html, "text/html").body.textContent || "").substring(0,100)}...</span>`;
     if (email.text) return `<span class="email-text-preview">${escapeHtml(email.text.substring(0, 100))}...</span>`;
     return '<span class="email-no-content">No content available</span>';
   }
@@ -146,14 +145,14 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (email.text) {
       emailContent = `<div class="email-text-content"><pre>${escapeHtml(email.text)}</pre></div>`;
     } else {
-      emailContent = `<div class="email-error-content"><p>Could not display email content.</p><div class="email-headers"><h3>Email Headers</h3><div class="headers-container">${Object.entries(email.headers || {}).map(([key, value]) => `<div class="header-item"><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`).join('')}</div></div></div>`;
+      emailContent = `<div class="email-error-content"><p>Could not display email content.</p><div class="email-headers"><h3>Email Headers</h3><div class="headers-container">${Object.entries(email.headers || {}).map(([key, value]) => `<div class="header-item"><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value.toString())}</div>`).join('')}</div></div></div>`;
     }
     
     modalContent.innerHTML = `
       <div class="modal-header"><h2>${escapeHtml(email.subject || 'No Subject')}</h2><button id="closeModalBtn" class="btn icon-btn"><i class="fas fa-times"></i></button></div>
       <div class="modal-meta">
         <div><strong>From:</strong> ${escapeHtml(formatFromAddress(email.from))}</div>
-        <div><strong>To:</strong> ${escapeHtml(typeof email.to === 'string' ? email.to : email.to?.address)}</div>
+        <div><strong>To:</strong> ${escapeHtml(email.to)}</div>
         <div><strong>Date:</strong> ${formatDate(new Date(email.receivedAt), true)}</div>
       </div>
       <div class="modal-body">${emailContent}</div>

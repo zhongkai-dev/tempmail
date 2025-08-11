@@ -23,54 +23,88 @@ app.post('/api/generate', (req, res) => {
 
 // Receive email from Cloudflare Worker
 app.post('/api/email-inbound', (req, res) => {
-  console.log('Received email:', JSON.stringify(req.body, null, 2));
-  
-  const { to, from, subject, text, html } = req.body;
-  
-  // Extract local part from 'to' field
-  let localPart;
-  let toAddress;
-  
-  if (typeof to === 'string') {
-    toAddress = to;
-    localPart = to.split('@')[0];
-  } else if (Array.isArray(to)) {
-    toAddress = to[0].address;
-    localPart = toAddress.split('@')[0];
-  } else if (to && to.address) {
-    // Handle the case where 'to' is an object with 'address' property
-    toAddress = to.address;
-    localPart = toAddress.split('@')[0];
-  } else {
-    console.error('Invalid or missing "to" field in email:', to);
-    return res.status(400).send('Invalid email format: missing or invalid "to" field');
+  try {
+    console.log('Received email request');
+    
+    // Check if the request body exists
+    if (!req.body) {
+      console.error('Empty request body');
+      return res.status(400).send('Empty request body');
+    }
+    
+    console.log('Email data:', JSON.stringify(req.body, null, 2));
+    
+    const { to, from, subject, text, html } = req.body;
+    
+    // Validate required fields
+    if (!to) {
+      console.error('Missing "to" field in request');
+      return res.status(400).send('Missing "to" field');
+    }
+    
+    // Extract local part from 'to' field
+    let localPart;
+    let toAddress;
+    
+    if (typeof to === 'string') {
+      // Format: "user@domain.com"
+      toAddress = to;
+      const parts = to.split('@');
+      if (parts.length >= 2) {
+        localPart = parts[0];
+      } else {
+        localPart = to; // Fallback
+      }
+    } else if (Array.isArray(to)) {
+      // Format: [{address: "user@domain.com"}]
+      if (to.length > 0 && to[0].address) {
+        toAddress = to[0].address;
+        localPart = toAddress.split('@')[0];
+      } else {
+        console.error('Invalid array format for "to" field');
+        return res.status(400).send('Invalid "to" field format');
+      }
+    } else if (to && to.address) {
+      // Format: {address: "user@domain.com"}
+      toAddress = to.address;
+      localPart = toAddress.split('@')[0];
+    } else {
+      console.error('Invalid format for "to" field:', to);
+      return res.status(400).send('Invalid "to" field format');
+    }
+
+    console.log(`Processing email for: ${localPart}@zhongkai.click`);
+
+    // Always store the email for testing purposes
+    if (!tempEmails.has(localPart)) {
+      console.log(`Adding new temp email: ${localPart}`);
+      tempEmails.add(localPart);
+    }
+
+    // Initialize array for this email address if it doesn't exist
+    if (!emailsByAddress[localPart]) {
+      emailsByAddress[localPart] = [];
+    }
+    
+    // Format the email data for storage
+    const emailData = {
+      from: from,
+      subject: subject || 'No Subject',
+      text: text || '',
+      html: html || '',
+      receivedAt: new Date()
+    };
+    
+    // Store the email
+    emailsByAddress[localPart].push(emailData);
+    console.log(`Email stored for ${localPart}. Total emails: ${emailsByAddress[localPart].length}`);
+
+    // Return success
+    return res.status(200).send('Email stored successfully');
+  } catch (error) {
+    console.error('Error processing email:', error);
+    return res.status(500).send(`Server error: ${error.message}`);
   }
-
-  console.log(`Processing email for: ${localPart}@zhongkai.click`);
-
-  if (!tempEmails.has(localPart)) {
-    // For debugging, let's still store unknown emails temporarily
-    console.log(`Unknown temp email: ${localPart}, but storing anyway for testing`);
-    tempEmails.add(localPart); // Add it for testing purposes
-    // Uncomment to reject unknown emails in production
-    // return res.status(400).send('Unknown temp email');
-  }
-
-  if (!emailsByAddress[localPart]) emailsByAddress[localPart] = [];
-  
-  // Format the email data for storage
-  const emailData = {
-    from: from,
-    subject: subject || 'No Subject',
-    text: text || '',
-    html: html || '',
-    receivedAt: new Date()
-  };
-  
-  emailsByAddress[localPart].push(emailData);
-  console.log(`Email stored for ${localPart}. Total emails: ${emailsByAddress[localPart].length}`);
-
-  res.status(200).send('Email stored');
 });
 
 // Get emails for a temp email
